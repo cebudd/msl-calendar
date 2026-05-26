@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Performance Concierge — Calendar</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #f3f2f1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top nav bar ─────────────────────────────── */
+.app-header {
+  background: #0f3460;
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  height: 46px;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.app-header .app-icon { font-size: 18px; }
+.app-header .app-name { font-size: 17px; font-weight: 400; letter-spacing: -0.2px; }
+.app-header .pc-badge {
+  background: #e3008c;
+  color: white;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+.app-header .employee-name {
+  margin-left: auto;
+  font-size: 13px;
+  opacity: 0.85;
+  font-style: italic;
+}
+
+/* ── Notification banner ─────────────────────── */
+.notif-banner {
+  background: linear-gradient(90deg, #1a3a5c 0%, #0052a3 100%);
+  color: white;
+  padding: 10px 18px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  flex-shrink: 0;
+}
+.notif-banner .notif-icon {
+  font-size: 18px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+.notif-banner .notif-body { flex: 1; }
+.notif-banner strong { font-weight: 600; }
+.notif-banner .notif-pill {
+  display: inline-block;
+  background: rgba(227,0,140,0.3);
+  border: 1px solid rgba(227,0,140,0.6);
+  color: #ffb3e0;
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  font-weight: 700;
+  margin: 0 2px;
+}
+.notif-banner .dismiss {
+  cursor: pointer;
+  opacity: 0.6;
+  font-size: 16px;
+  margin-left: 8px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.notif-banner .dismiss:hover { opacity: 1; }
+
+/* ── Calendar toolbar ────────────────────────── */
+.cal-toolbar {
+  background: white;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #edebe9;
+  flex-shrink: 0;
+}
+.week-label {
+  font-size: 17px;
+  font-weight: 600;
+  color: #201f1e;
+}
+.nav-btn {
+  background: none;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #323130;
+  font-family: inherit;
+}
+.nav-btn:hover { background: #f3f2f1; }
+.view-btn {
+  margin-left: auto;
+  background: none;
+  border: 1px solid #c8c6c4;
+  border-radius: 2px;
+  padding: 4px 10px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #323130;
+  font-family: inherit;
+}
+
+/* ── Legend ──────────────────────────────────── */
+.legend {
+  background: white;
+  padding: 6px 16px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  border-bottom: 1px solid #edebe9;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.legend-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-right: 2px;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11.5px;
+  color: #605e5c;
+}
+.legend-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* ── Calendar outer scroll ───────────────────── */
+.calendar-outer {
+  flex: 1;
+  overflow-y: auto;
+  background: white;
+}
+
+/* ── Day header row ──────────────────────────── */
+.day-headers {
+  display: flex;
+  border-bottom: 1px solid #edebe9;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 20;
+}
+.time-gutter-header {
+  width: 58px;
+  min-width: 58px;
+  border-right: 1px solid #edebe9;
+}
+.day-header {
+  flex: 1;
+  padding: 6px 0 8px 0;
+  text-align: center;
+  border-right: 1px solid #edebe9;
+}
+.day-header:last-child { border-right: none; }
+.day-name {
+  font-size: 10px;
+  color: #a19f9d;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.day-num {
+  font-size: 22px;
+  font-weight: 300;
+  color: #201f1e;
+  line-height: 1;
+}
+.day-header.today .day-num {
+  background: #0078d4;
+  color: white;
+  border-radius: 50%;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+/* ── Grid body ───────────────────────────────── */
+.grid-body {
+  display: flex;
+}
+.time-col {
+  width: 58px;
+  min-width: 58px;
+  border-right: 1px solid #edebe9;
+}
+.time-slot {
+  height: 48px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding-right: 8px;
+  padding-top: 2px;
+}
+.time-slot span {
+  font-size: 10px;
+  color: #a19f9d;
+  white-space: nowrap;
+  line-height: 1;
+}
+.days-container {
+  flex: 1;
+  display: flex;
+}
+.day-col {
+  flex: 1;
+  position: relative;
+  border-right: 1px solid #edebe9;
+}
+.day-col:last-child { border-right: none; }
+
+/* Grid lines */
+.hour-line {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px solid #edebe9;
+  pointer-events: none;
+}
+.half-line {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 1px dashed #f3f2f1;
+  pointer-events: none;
+}
+
+/* ── Events ──────────────────────────────────── */
+.event {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  border-radius: 3px;
+  padding: 3px 6px 3px 7px;
+  font-size: 11px;
+  overflow: hidden;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: filter 0.1s;
+}
+.event:hover { filter: brightness(0.93); }
+.event-title {
+  font-weight: 600;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.event-time {
+  font-size: 10px;
+  opacity: 0.65;
+  margin-top: 1px;
+}
+/* Taller events show more */
+.event.tall .event-title { white-space: normal; }
+
+/* Category color palettes — Outlook-faithful */
+.cat-customer-facing {
+  border-left-color: #107c10;
+  background: #dff6dd;
+  color: #0b4f0b;
+}
+.cat-customer-related {
+  border-left-color: #b46504;
+  background: #fff4ce;
+  color: #6b3c00;
+}
+.cat-internal {
+  border-left-color: #0063b1;
+  background: #cce4f7;
+  color: #003a6b;
+}
+.cat-training {
+  border-left-color: #7549a0;
+  background: #ede9f8;
+  color: #432a66;
+}
+
+/* Elementum-scheduled — hot pink, prominent */
+.cat-elementum {
+  border-left-color: #e3008c !important;
+  background: linear-gradient(135deg, #fce8f3 0%, #f0e4fd 100%) !important;
+  color: #6b0042 !important;
+  box-shadow: 0 1px 5px rgba(227,0,140,0.22), inset 0 0 0 1px rgba(227,0,140,0.15);
+}
+.cat-elementum .event-title::before {
+  content: '⚡ ';
+}
+.cat-elementum .checkin-tag {
+  display: inline-block;
+  background: #e3008c;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-top: 2px;
+  letter-spacing: 0.2px;
+}
+
+/* Current time indicator */
+.now-line {
+  position: absolute;
+  left: 0; right: 0;
+  border-top: 2px solid #d13438;
+  z-index: 5;
+  pointer-events: none;
+}
+.now-dot {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  background: #d13438;
+  border-radius: 50%;
+}
+</style>
+</head>
+<body>
+
+<!-- Top nav -->
+<div class="app-header">
+  <span class="app-icon">📅</span>
+  <span class="app-name">Outlook</span>
+  <span class="pc-badge">Performance Concierge</span>
+  <span class="employee-name" id="header-name"></span>
+</div>
+
+<!-- Elementum notification banner -->
+<div class="notif-banner" id="notif-banner">
+  <span class="notif-icon">⚡</span>
+  <div class="notif-body">
+    <strong>Elementum Performance Concierge</strong> has automatically scheduled a weekly manager check-in cadence for
+    <strong id="notif-employee"></strong> based on Mid-Year 2026 review results
+    (<span class="notif-pill">Intervention Needed</span> · Signal Index 58/100).
+    First session: <strong id="notif-first-date"></strong> at 9:00 AM · Recurring weekly every Tuesday.
+  </div>
+  <span class="dismiss" onclick="document.getElementById('notif-banner').style.display='none'" title="Dismiss">✕</span>
+</div>
+
+<!-- Toolbar -->
+<div class="cal-toolbar">
+  <button class="nav-btn">‹</button>
+  <button class="nav-btn">›</button>
+  <span class="week-label" id="week-label"></span>
+  <button class="view-btn">Week ▾</button>
+</div>
+
+<!-- Legend -->
+<div class="legend">
+  <span class="legend-label">Legend</span>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#dff6dd; border: 2px solid #107c10;"></div>
+    Customer-Facing
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#fff4ce; border: 2px solid #b46504;"></div>
+    Customer-Related
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#cce4f7; border: 2px solid #0063b1;"></div>
+    Internal
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background:#ede9f8; border: 2px solid #7549a0;"></div>
+    Training &amp; Compliance
+  </div>
+  <div class="legend-item">
+    <div class="legend-swatch" style="background: linear-gradient(135deg,#fce8f3,#f0e4fd); border: 2px solid #e3008c;"></div>
+    ⚡ Elementum-Scheduled
+  </div>
+</div>
+
+<!-- Calendar scroll area -->
+<div class="calendar-outer" id="calendar-outer">
+  <div class="day-headers" id="day-headers">
+    <div class="time-gutter-header"></div>
+    <!-- injected by JS -->
+  </div>
+  <div class="grid-body">
+    <div class="time-col" id="time-col"></div>
+    <div class="days-container" id="days-container"></div>
+  </div>
+</div>
+
+<script>
+// ── Constants ────────────────────────────────────────────────────────────
+const PX_PER_MIN = 1.6;   // 1.6px per minute → 48px per 30-min slot
+const START_H    = 7;     // 7:00 AM
+const END_H      = 19;    // 7:00 PM
+const TOTAL_H    = (END_H - START_H) * 60 * PX_PER_MIN;
+
+const DAY_NAMES  = ['Mon','Tue','Wed','Thu','Fri'];
+const MONTHS     = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+function toPx(h, m) { return ((h - START_H) * 60 + m) * PX_PER_MIN; }
+function durPx(mins) { return mins * PX_PER_MIN; }
+function fmt(h, m) {
+  const p = h >= 12 ? 'PM' : 'AM';
+  const h12 = h > 12 ? h-12 : (h === 0 ? 12 : h);
+  return `${h12}:${String(m).padStart(2,'0')} ${p}`;
+}
+function addMins(h, m, mins) {
+  const total = h*60 + m + mins;
+  return [Math.floor(total/60), total%60];
+}
+
+// ── URL params ───────────────────────────────────────────────────────────
+const params = new URLSearchParams(location.search);
+const employeeName = params.get('name') || 'James Park';
+const dateParam    = params.get('date');
+const today        = dateParam ? new Date(dateParam + 'T12:00:00') : new Date();
+const todayDow     = today.getDay(); // 0=Sun…6=Sat
+
+// ── Week selection logic ─────────────────────────────────────────────────
+// Thu(4), Fri(5), Sat(6), Sun(0) → next week; else → this week
+let weekStart = new Date(today);
+if (todayDow === 0 || todayDow >= 4) {
+  const jump = todayDow === 0 ? 1 : (8 - todayDow) % 7 || 7;
+  weekStart.setDate(today.getDate() + jump);
+} else {
+  weekStart.setDate(today.getDate() - (todayDow - 1));
+}
+
+// Build Mon–Fri dates
+const weekDates = Array.from({length: 5}, (_, i) => {
+  const d = new Date(weekStart);
+  d.setDate(weekStart.getDate() + i);
+  return d;
+});
+
+// Check-in lands on Tuesday (index 1) at 9:00 AM
+const checkinDate = weekDates[1];
+const checkinLabel = checkinDate.toLocaleDateString('en-US',
+  { weekday:'long', month:'long', day:'numeric' });
+
+// ── Header labels ─────────────────────────────────────────────────────────
+document.getElementById('header-name').textContent = `${employeeName}'s Calendar`;
+document.getElementById('notif-employee').textContent = employeeName;
+document.getElementById('notif-first-date').textContent = checkinLabel;
+
+const m0 = MONTHS[weekStart.getMonth()];
+const m1 = MONTHS[weekDates[4].getMonth()];
+const yr = weekStart.getFullYear();
+document.getElementById('week-label').textContent =
+  m0 === m1
+    ? `${m0} ${weekStart.getDate()}–${weekDates[4].getDate()}, ${yr}`
+    : `${m0} ${weekStart.getDate()} – ${m1} ${weekDates[4].getDate()}, ${yr}`;
+
+// ── Events data ──────────────────────────────────────────────────────────
+// day: 0=Mon … 4=Fri
+// cat: customer-facing | customer-related | internal | training | elementum
+const EVENTS = [
+
+  // ── MONDAY ────────────────────────────────────────────────────────────
+  { day:0, h:8,  m:0,  dur:30,  title:'Pre-call Planning: Dr. Martinez',                     cat:'customer-related' },
+  { day:0, h:9,  m:0,  dur:90,  title:'Scientific Exchange: Dr. S. Martinez · MD Anderson',  cat:'customer-facing'  },
+  { day:0, h:11, m:0,  dur:60,  title:'Veeva CRM Documentation & Call Notes',                cat:'customer-related' },
+  { day:0, h:13, m:0,  dur:60,  title:'Regional MSL Team Weekly Sync',                       cat:'internal'         },
+  { day:0, h:14, m:30, dur:60,  title:'Medical Information Request Follow-up',               cat:'customer-related' },
+  { day:0, h:16, m:0,  dur:60,  title:'TA Update: Checkpoint Inhibitor Pipeline Review',     cat:'training'         },
+
+  // ── TUESDAY ───────────────────────────────────────────────────────────
+  { day:1, h:9,  m:0,  dur:30,  title:`Weekly Manager Check-in · ${employeeName}`,          cat:'elementum', isCheckin:true },
+  { day:1, h:10, m:0,  dur:30,  title:'Pre-call Planning: Dr. Patel',                        cat:'customer-related' },
+  { day:1, h:11, m:0,  dur:90,  title:'KOL Meeting: Dr. Raj Patel · MSKCC',                 cat:'customer-facing'  },
+  { day:1, h:13, m:30, dur:30,  title:'Veeva Documentation',                                 cat:'customer-related' },
+  { day:1, h:14, m:30, dur:60,  title:'Tumor Board — Virtual Attendance',                    cat:'customer-facing'  },
+  { day:1, h:16, m:0,  dur:60,  title:'Cross-Functional Sync: Market Access & Med Affairs',  cat:'internal'         },
+
+  // ── WEDNESDAY ─────────────────────────────────────────────────────────
+  { day:2, h:8,  m:0,  dur:60,  title:'Advisory Board Content Prep — ASCO 2026',             cat:'internal'         },
+  { day:2, h:9,  m:30, dur:60,  title:'Scientific Exchange: Dr. L. Thompson · Mayo Clinic',  cat:'customer-facing'  },
+  { day:2, h:11, m:0,  dur:60,  title:'Medical Affairs Field Team Check-in',                 cat:'internal'         },
+  { day:2, h:13, m:0,  dur:60,  title:'Literature Review: KEYNOTE-590 Updated Data',         cat:'customer-related' },
+  { day:2, h:15, m:0,  dur:30,  title:'Pre-call Planning: Dr. Kim',                          cat:'customer-related' },
+  { day:2, h:15, m:30, dur:60,  title:'KOL Meeting: Dr. Y-S. Kim · Johns Hopkins',           cat:'customer-facing'  },
+
+  // ── THURSDAY ──────────────────────────────────────────────────────────
+  { day:3, h:9,  m:0,  dur:60,  title:'Peer-to-Peer Program: Facilitation Prep',             cat:'internal'         },
+  { day:3, h:10, m:30, dur:90,  title:'KOL Lunch: Dr. Elena Rivera · UCSF',                  cat:'customer-facing'  },
+  { day:3, h:13, m:0,  dur:60,  title:'Medical Education Program Planning',                  cat:'internal'         },
+  { day:3, h:14, m:30, dur:60,  title:'Veeva Documentation & Territory Review',              cat:'customer-related' },
+  { day:3, h:16, m:0,  dur:30,  title:'Expense Reports & Admin',                             cat:'internal'         },
+
+  // ── FRIDAY ────────────────────────────────────────────────────────────
+  { day:4, h:8,  m:30, dur:60,  title:'Weekly Oncology Pipeline Briefing',                   cat:'training'         },
+  { day:4, h:10, m:0,  dur:45,  title:'KOL Call: Dr. Nguyen · Dana-Farber Cancer Institute', cat:'customer-facing'  },
+  { day:4, h:11, m:0,  dur:60,  title:'ASCO Abstract Review & Submission Planning',          cat:'internal'         },
+  { day:4, h:13, m:0,  dur:60,  title:'Territory Planning: Next Week Priorities',            cat:'internal'         },
+  { day:4, h:14, m:30, dur:30,  title:'Medical Info Request: Dr. Chen inquiry',              cat:'customer-related' },
+  { day:4, h:15, m:30, dur:30,  title:'End-of-Week Wrap + Manager Update',                   cat:'internal'         },
+];
+
+// ── Build time column ────────────────────────────────────────────────────
+const timeCol = document.getElementById('time-col');
+for (let h = START_H; h < END_H; h++) {
+  for (let half = 0; half < 2; half++) {
+    const slot = document.createElement('div');
+    slot.className = 'time-slot';
+    slot.innerHTML = half === 0
+      ? `<span>${fmt(h,0)}</span>`
+      : `<span style="opacity:0.35">${fmt(h,30)}</span>`;
+    timeCol.appendChild(slot);
+  }
+}
+
+// ── Build day headers ────────────────────────────────────────────────────
+const headersEl = document.getElementById('day-headers');
+weekDates.forEach((d, i) => {
+  const isToday = !dateParam && d.toDateString() === new Date().toDateString();
+  const div = document.createElement('div');
+  div.className = 'day-header' + (isToday ? ' today' : '');
+  div.innerHTML = `<div class="day-name">${DAY_NAMES[i]}</div>
+    <div class="day-num">${d.getDate()}</div>`;
+  headersEl.appendChild(div);
+});
+
+// ── Build day columns ─────────────────────────────────────────────────────
+const daysContainer = document.getElementById('days-container');
+
+for (let d = 0; d < 5; d++) {
+  const col = document.createElement('div');
+  col.className = 'day-col';
+  col.style.minHeight = TOTAL_H + 'px';
+
+  // Grid lines
+  for (let h = START_H; h < END_H; h++) {
+    const hl = document.createElement('div');
+    hl.className = 'hour-line';
+    hl.style.top = toPx(h, 0) + 'px';
+    col.appendChild(hl);
+
+    const fl = document.createElement('div');
+    fl.className = 'half-line';
+    fl.style.top = toPx(h, 30) + 'px';
+    col.appendChild(fl);
+  }
+
+  // Events
+  EVENTS.filter(e => e.day === d).forEach(ev => {
+    const [endH, endM] = addMins(ev.h, ev.m, ev.dur);
+    const height = Math.max(durPx(ev.dur) - 2, 22);
+    const tall   = ev.dur >= 45;
+
+    const el = document.createElement('div');
+    el.className = `event cat-${ev.cat}${tall ? ' tall' : ''}`;
+    el.style.top    = toPx(ev.h, ev.m) + 'px';
+    el.style.height = height + 'px';
+
+    let inner = `<div class="event-title">${ev.title}</div>
+      <div class="event-time">${fmt(ev.h, ev.m)} – ${fmt(endH, endM)}</div>`;
+
+    if (ev.isCheckin) {
+      inner += `<div class="checkin-tag">Elementum · Weekly Cadence</div>`;
+    }
+
+    el.innerHTML = inner;
+    col.appendChild(el);
+  });
+
+  // Current-time line (today's column only, if showing current week)
+  const colDate = weekDates[d];
+  if (!dateParam && colDate.toDateString() === new Date().toDateString()) {
+    const now = new Date();
+    if (now.getHours() >= START_H && now.getHours() < END_H) {
+      const line = document.createElement('div');
+      line.className = 'now-line';
+      line.style.top = toPx(now.getHours(), now.getMinutes()) + 'px';
+      const dot = document.createElement('div');
+      dot.className = 'now-dot';
+      line.appendChild(dot);
+      col.appendChild(line);
+    }
+  }
+
+  daysContainer.appendChild(col);
+}
+
+// ── Scroll to 8 AM on load ───────────────────────────────────────────────
+document.getElementById('calendar-outer').scrollTop = toPx(7, 45);
+</script>
+</body>
+</html>
